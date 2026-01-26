@@ -58,11 +58,15 @@ Night Image (A) ──┐
 ### 1. Cloner/Créer le repo
 
 ```bash
-# Créer le dossier du projet
-mkdir night2day_project
-cd night2day_project
+# Clone du repo en local 
+git clone https://github.com/pierre265/Night-Day-translation-unpaired-CycleGAN-pix2pix-style-.git
 
-# Copier les fichiers fournis dans ce dossier
+# se connecter sur le repo a distance 
+git remote set-url origin https://github.com/pierre265/Night-Day-translation-unpaired-CycleGAN-pix2pix-style-.git
+
+# Vérifier avec 
+git remote -v 
+git status
 ```
 
 ### 2. Installer les dépendances
