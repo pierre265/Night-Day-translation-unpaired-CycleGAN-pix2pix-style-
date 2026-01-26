@@ -1,0 +1,114 @@
+# Configuration pour le projet Night→Day Translation (CycleGAN)
+# Projet 9 - Embedded AI on Jetson
+
+project: night2day_cyclegan
+description: "Night to Day image translation using CycleGAN"
+
+# Dataset configuration
+dataset:
+  name: "huggan/night2day"
+  use_huggingface: true
+  # Si use_huggingface: false, spécifier les chemins locaux:
+  # domain_a_path: "data/night2day/trainA"  # Night images
+  # domain_b_path: "data/night2day/trainB"  # Day images
+  
+# Training parameters
+training:
+  epochs: 100  # CycleGAN nécessite plus d'epochs qu'un modèle supervisé
+  batch_size: 4  # Ajuster selon GPU disponible (4 pour Jetson, 8-16 pour PC)
+  image_size: 256  # Résolution d'entraînement (256 ou 320)
+  
+  # Learning rates
+  lr_generator: 0.0002  # Learning rate pour les générateurs
+  lr_discriminator: 0.0002  # Learning rate pour les discriminateurs
+  beta1: 0.5  # Adam optimizer beta1
+  beta2: 0.999  # Adam optimizer beta2
+  
+  # Loss weights (CycleGAN)
+  lambda_cycle: 10.0  # Poids pour cycle consistency loss
+  lambda_identity: 5.0  # Poids pour identity loss (optionnel, 0 pour désactiver)
+  
+  # Learning rate decay
+  lr_decay_start: 50  # Epoch où commence le decay
+  lr_decay_epochs: 50  # Nombre d'epochs de decay
+  
+  # Gradient accumulation (si manque de mémoire)
+  gradient_accumulation_steps: 1
+
+# Model architecture
+model:
+  type: "cyclegan"  # ou "unet_paired" pour variante supervisée
+  generator:
+    name: "resnet_6blocks"  # resnet_6blocks ou resnet_9blocks
+    input_channels: 3
+    output_channels: 3
+    base_filters: 64  # 64 standard, 32 pour version lite
+    use_dropout: false  # true pour plus de régularisation
+  
+  discriminator:
+    name: "patchgan"  # Discriminateur PatchGAN
+    input_channels: 3
+    base_filters: 64
+    n_layers: 3  # Nombre de couches (3 standard, 2 pour lite)
+
+# Optimization
+optimization:
+  mixed_precision: true  # FP16 pour accélérer (si GPU compatible)
+  use_amp: true  # Automatic Mixed Precision
+  clip_grad_norm: 1.0  # Gradient clipping pour stabilité
+
+# Data augmentation
+augmentation:
+  random_flip: true
+  random_crop: true
+  # Pas de color jitter (important pour préserver les domaines)
+
+# Checkpointing
+checkpointing:
+  save_dir: "src/runs/night2day_cyclegan"
+  save_every: 10  # Sauvegarder tous les N epochs
+  keep_last_n: 3  # Garder les N derniers checkpoints
+  save_best: true  # Sauvegarder le meilleur modèle (selon FID si calculé)
+
+# Logging
+logging:
+  log_every: 100  # Log toutes les N iterations
+  sample_every: 500  # Générer samples toutes les N iterations
+  num_samples: 8  # Nombre d'images samples à sauvegarder
+  use_tensorboard: false  # true si TensorBoard installé
+  use_wandb: false  # true si Weights & Biases configuré
+
+# Validation
+validation:
+  val_every: 5  # Valider tous les N epochs
+  save_samples: true
+  num_val_samples: 16  # Nombre d'images de validation à sauvegarder
+  compute_fid: false  # true pour calculer FID (coûteux)
+
+# Hardware
+hardware:
+  num_workers: 4  # Nombre de workers pour DataLoader (0 sur Windows si problèmes)
+  pin_memory: true
+  device: "cuda"  # cuda, cpu, ou mps (Apple Silicon)
+  
+# Inference / Demo
+inference:
+  model_path: "src/runs/night2day_cyclegan/best.pt"
+  size: 256  # Résolution pour demo live
+  direction: "AtoB"  # AtoB (night→day) ou BtoA (day→night)
+  use_onnx: false  # true si modèle exporté en ONNX
+  
+# Jetson-specific (pour Phase 3)
+jetson:
+  camera_width: 1280
+  camera_height: 720
+  camera_fps: 30
+  inference_size: 256  # Réduire si FPS trop bas (128, 192, 256, 320)
+  use_tensorrt: false  # true si TensorRT configuré (avancé)
+  display_fps: true
+  
+# Export ONNX
+export:
+  opset_version: 11
+  dynamic_axes: false  # true pour batch size dynamique
+  simplify: true  # Simplifier le graph ONNX

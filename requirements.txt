@@ -1,3 +1,50 @@
-datasets
-huggingface-hub
-pillow
+# Requirements pour Night→Day Translation Project
+# Projet 9 - Embedded AI on Jetson
+
+# Core dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.23.0
+pillow>=9.0.0
+opencv-python>=4.7.0  # Pour demo live
+pyyaml>=6.0
+
+# Dataset (Hugging Face)
+datasets>=2.14.0
+huggingface-hub>=0.16.0
+
+# Training utilities
+tqdm>=4.65.0
+
+# Optional: Monitoring
+# tensorboard>=2.13.0
+# wandb>=0.15.0
+
+# Optional: ONNX export
+# onnx>=1.14.0
+# onnxruntime>=1.15.0
+# onnx-simplifier>=0.4.0
+
+# Optional: Metrics (FID, LPIPS)
+# scipy>=1.10.0
+# scikit-image>=0.20.0
+
+# Development
+# pytest>=7.3.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# Platform-specific notes:
+# =======================
+# Windows: Si problèmes avec num_workers > 0, installer:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+# Mac (Apple Silicon): Utiliser device='mps' dans config
+#   pip install torch torchvision
+#
+# Jetson (Ubuntu 20.04/22.04):
+#   OpenCV est généralement préinstallé
+#   Pour PyTorch: suivre https://forums.developer.nvidia.com/t/pytorch-for-jetson/
+#
+# CUDA: Installer selon votre version
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
