@@ -1,9 +1,9 @@
-"""
-Dataloader pour les datasets non-appariés (unpaired) - Projet Night2Day
-Utilisé pour CycleGAN et autres approches de domain translation
+# Supprimer l'ancien fichier et en créer un nouveau
+!rm src/datasets/unpaired.py
 
-Ce dataloader charge des images de deux domaines différents (A et B)
-sans correspondance explicite entre elles.
+# Créer le nouveau fichier corrigé
+code_corrige = '''"""
+Dataloader pour les datasets non-appariés (unpaired) - Projet Night2Day
 """
 
 import os
@@ -16,16 +16,6 @@ from datasets import load_dataset
 
 
 class UnpairedDataset(Dataset):
-    """
-    Dataset pour chargement d'images non-appariées (deux domaines séparés)
-    
-    Args:
-        domain_a_path: Chemin vers les images du domaine A (ex: night)
-        domain_b_path: Chemin vers les images du domaine B (ex: day)
-        transform: Transformations à appliquer
-        mode: 'train' ou 'test'
-    """
-    
     def __init__(
         self,
         domain_a_path: Optional[str] = None,
@@ -40,24 +30,25 @@ class UnpairedDataset(Dataset):
         self.use_huggingface = use_huggingface
         
         if use_huggingface:
-            # Chargement depuis Hugging Face
             print(f"Loading dataset from Hugging Face: {hf_dataset_name}")
             dataset = load_dataset(hf_dataset_name)
             
-            # Extraction des images selon le mode
-            if mode == 'train':
-                self.images_a = dataset['train']  # Night images
-                self.images_b = dataset['train']  # Day images (même split mais domaine différent)
-            else:
-                self.images_a = dataset['test'] if 'test' in dataset else dataset['train']
-                self.images_b = dataset['test'] if 'test' in dataset else dataset['train']
-                
-            self.length = min(len(self.images_a), len(self.images_b))
+            # Le dataset a imageA (night) et imageB (day)
+            all_data = dataset['train']
             
+            if mode == 'train':
+                # 90% pour train
+                n_train = int(len(all_data) * 0.9)
+                self.data = all_data.select(range(n_train))
+            else:
+                # 10% pour test
+                n_train = int(len(all_data) * 0.9)
+                self.data = all_data.select(range(n_train, len(all_data)))
+            
+            self.length = len(self.data)
         else:
-            # Chargement depuis dossiers locaux (fallback)
             if not domain_a_path or not domain_b_path:
-                raise ValueError("domain_a_path and domain_b_path required when use_huggingface=False")
+                raise ValueError("Paths required when use_huggingface=False")
             
             self.images_a = sorted([
                 os.path.join(domain_a_path, f) 
@@ -70,32 +61,27 @@ class UnpairedDataset(Dataset):
                 if f.endswith(('.png', '.jpg', '.jpeg'))
             ])
             self.length = min(len(self.images_a), len(self.images_b))
+            self.data = None
         
-        print(f"Loaded {self.length} images per domain for {mode} mode")
+        print(f"Loaded {self.length} images for {mode} mode")
     
     def __len__(self) -> int:
         return self.length
     
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Retourne un tuple (image_a, image_b)
-        Les images ne sont PAS appariées (domaines différents)
-        """
-        # Pour unpaired data, on peut randomiser l'index du domaine B
         if self.mode == 'train':
             idx_b = torch.randint(0, self.length, (1,)).item()
         else:
-            idx_b = idx  # Fixe pour test (reproductibilité)
+            idx_b = idx
         
-        # Chargement des images
         if self.use_huggingface:
-            img_a = self.images_a[idx]['image']  # PIL Image
-            img_b = self.images_b[idx_b]['image']  # PIL Image
+            # Accéder à imageA et imageB
+            img_a = self.data[idx]['imageA']
+            img_b = self.data[idx_b]['imageB']
         else:
             img_a = Image.open(self.images_a[idx]).convert('RGB')
             img_b = Image.open(self.images_b[idx_b]).convert('RGB')
         
-        # Application des transformations
         if self.transform:
             img_a = self.transform(img_a)
             img_b = self.transform(img_b)
@@ -104,19 +90,12 @@ class UnpairedDataset(Dataset):
 
 
 def get_transforms(image_size: int = 256, mode: str = 'train') -> transforms.Compose:
-    """
-    Retourne les transformations appropriées selon le mode
-    
-    Args:
-        image_size: Taille cible des images
-        mode: 'train' ou 'test'
-    """
     if mode == 'train':
         return transforms.Compose([
-            transforms.Resize(int(image_size * 1.12)),  # Slightly larger for crop
+            transforms.Resize(int(image_size * 1.12)),
             transforms.RandomCrop(image_size),
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.ToTensor(),  # [0, 1]
+            transforms.ToTensor(),
         ])
     else:
         return transforms.Compose([
@@ -135,22 +114,6 @@ def get_dataloader(
     domain_b_path: Optional[str] = None,
     hf_dataset_name: str = "huggan/night2day"
 ) -> DataLoader:
-    """
-    Crée un DataLoader pour le dataset unpaired
-    
-    Args:
-        batch_size: Taille des batchs
-        image_size: Taille des images après resize
-        num_workers: Nombre de workers pour le chargement
-        mode: 'train' ou 'test'
-        use_huggingface: Utiliser le dataset HuggingFace ou local
-        domain_a_path: Chemin local domaine A (si use_huggingface=False)
-        domain_b_path: Chemin local domaine B (si use_huggingface=False)
-        hf_dataset_name: Nom du dataset HuggingFace
-    
-    Returns:
-        DataLoader configuré
-    """
     transform = get_transforms(image_size, mode)
     
     dataset = UnpairedDataset(
@@ -168,32 +131,36 @@ def get_dataloader(
         shuffle=(mode == 'train'),
         num_workers=num_workers,
         pin_memory=True,
-        drop_last=(mode == 'train')  # Drop last incomplete batch in training
+        drop_last=(mode == 'train')
     )
     
     return dataloader
 
 
-# Test du dataloader
 if __name__ == "__main__":
     print("Testing UnpairedDataset...")
     
-    # Test avec HuggingFace
     train_loader = get_dataloader(
         batch_size=4,
         image_size=256,
-        num_workers=0,  # 0 pour debugging
+        num_workers=0,
         mode='train',
         use_huggingface=True
     )
     
-    print(f"\nTrain loader created: {len(train_loader)} batches")
+    print(f"\\nTrain loader: {len(train_loader)} batches")
     
-    # Test d'un batch
     img_a, img_b = next(iter(train_loader))
-    print(f"Batch shape - Domain A (night): {img_a.shape}")
-    print(f"Batch shape - Domain B (day): {img_b.shape}")
-    print(f"Value range - Domain A: [{img_a.min():.3f}, {img_a.max():.3f}]")
-    print(f"Value range - Domain B: [{img_b.min():.3f}, {img_b.max():.3f}]")
+    print(f"Night images: {img_a.shape}")
+    print(f"Day images: {img_b.shape}")
+    print(f"Range A: [{img_a.min():.3f}, {img_a.max():.3f}]")
+    print(f"Range B: [{img_b.min():.3f}, {img_b.max():.3f}]")
     
-    print("\n✅ Dataloader test successful!")
+    print("\\n✅ Dataloader test successful!")
+'''
+
+# Écrire le fichier
+with open('src/datasets/unpaired.py', 'w') as f:
+    f.write(code_corrige)
+
+print("✅ Fichier unpaired.py recréé !")
