@@ -403,12 +403,3 @@ Compléter `report.md` avec:
 
 ---
 
-## 👥 Équipe
-
-- **Préparé par:** [Ton nom]
-- **Date:** 2026-01-26
-- **Projet:** ESIEA Embedded AI - Night→Day Translation
-
----
-
-**Bon courage pour le projet ! 🚀**
